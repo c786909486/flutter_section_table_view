@@ -13,11 +13,11 @@ import '../../pull_to_refresh.dart';
 abstract class Wrapper extends StatefulWidget {
   final ValueNotifier<int> modeListener;
 
-  final IndicatorBuilder builder;
+  final IndicatorBuilder? builder;
 
   final bool up;
 
-  final double triggerDistance;
+  final double? triggerDistance;
 
   bool get _isRefreshing => this.mode == RefreshStatus.refreshing;
 
@@ -31,9 +31,9 @@ abstract class Wrapper extends StatefulWidget {
   set mode(int mode) => this.modeListener.value = mode;
 
   Wrapper(
-      {Key key,
-      @required this.up,
-      @required this.modeListener,
+      {Key? key,
+      required this.up,
+      required this.modeListener,
       this.builder,
       this.triggerDistance})
       : assert(up != null, modeListener != null),
@@ -57,21 +57,21 @@ abstract class Wrapper extends StatefulWidget {
 
 //idle,refreshing,completed,failed,canRefresh
 class RefreshWrapper extends Wrapper {
-  final int completeDuration;
+  final int? completeDuration;
 
-  final Function onOffsetChange;
+  final Function? onOffsetChange;
 
-  final double visibleRange;
+  final double? visibleRange;
 
   RefreshWrapper({
-    Key key,
-    IndicatorBuilder builder,
-    ValueNotifier<int> modeLis,
+    Key? key,
+    IndicatorBuilder? builder,
+    required ValueNotifier<int> modeLis,
     this.onOffsetChange,
     this.completeDuration: default_completeDuration,
-    double triggerDistance,
+    double? triggerDistance,
     this.visibleRange: default_VisibleRange,
-    bool up: true,
+    bool up = true,
   })  : assert(up != null),
         super(
           up: up,
@@ -91,7 +91,7 @@ class RefreshWrapper extends Wrapper {
 class RefreshWrapperState extends State<RefreshWrapper>
     with TickerProviderStateMixin
     implements GestureProcessor {
-  AnimationController _sizeController;
+  AnimationController? _sizeController;
 
   /*
       up indicate drag from top (pull down)
@@ -102,7 +102,7 @@ class RefreshWrapperState extends State<RefreshWrapper>
         If this value is 0, no controls will
         cause Flutter to automatically retrieve widget.
      */
-    _sizeController.animateTo(minSpace).then((dynamic val) {
+    _sizeController?.animateTo(minSpace).then((dynamic val) {
       widget.mode = RefreshStatus.idle;
     });
   }
@@ -113,11 +113,11 @@ class RefreshWrapperState extends State<RefreshWrapper>
     if (widget.up) {
       return (notification.metrics.minScrollExtent -
               notification.metrics.pixels) /
-          widget.triggerDistance;
+          (widget.triggerDistance??0);
     } else {
       return (notification.metrics.pixels -
               notification.metrics.maxScrollExtent) /
-          widget.triggerDistance;
+          (widget.triggerDistance??0);
     }
   }
 
@@ -151,7 +151,7 @@ class RefreshWrapperState extends State<RefreshWrapper>
     if (widget._isComplete || widget._isRefreshing) return;
     bool reachMax = _measure(notification) >= 1.0;
     if (!reachMax) {
-      _sizeController.animateTo(0.0);
+      _sizeController?.animateTo(0.0);
       return;
     } else {
       widget.mode = RefreshStatus.refreshing;
@@ -160,24 +160,24 @@ class RefreshWrapperState extends State<RefreshWrapper>
 
   void _handleOffsetCallBack() {
     if (widget.onOffsetChange != null) {
-      widget.onOffsetChange(
-          widget.up, _sizeController.value * widget.visibleRange);
+      widget.onOffsetChange!(
+          widget.up, (_sizeController?.value??0) * (widget.visibleRange??0));
     }
   }
 
   void _handleModeChange() {
     switch (mode) {
       case RefreshStatus.refreshing:
-        _sizeController.value = 1.0;
+        _sizeController?.value = 1.0;
         break;
       case RefreshStatus.completed:
-        new Future.delayed(new Duration(milliseconds: widget.completeDuration),
+        new Future.delayed(new Duration(milliseconds: widget.completeDuration??0),
             () {
           _dismiss();
         });
         break;
       case RefreshStatus.failed:
-        new Future.delayed(new Duration(milliseconds: widget.completeDuration),
+        new Future.delayed(new Duration(milliseconds: widget.completeDuration??0),
             () {
           _dismiss();
         }).then((val) {
@@ -192,7 +192,7 @@ class RefreshWrapperState extends State<RefreshWrapper>
   void dispose() {
     // TODO: implement dispose
     widget.modeListener.removeListener(_handleModeChange);
-    _sizeController.removeListener(_handleOffsetCallBack);
+    _sizeController?.removeListener(_handleOffsetCallBack);
     super.dispose();
   }
 
@@ -215,18 +215,21 @@ class RefreshWrapperState extends State<RefreshWrapper>
       return new Column(
         children: <Widget>[
           new SizeTransition(
-            sizeFactor: _sizeController,
+            sizeFactor: _sizeController!,
             child: new Container(height: widget.visibleRange),
           ),
-          widget.builder(context, widget.mode)
+          if(widget.builder!=null)
+            widget.builder!(context, widget.mode)
+
         ],
       );
     }
     return new Column(
       children: <Widget>[
-        widget.builder(context, widget.mode),
+        if(widget.builder!=null)
+         widget.builder!(context, widget.mode),
         new SizeTransition(
-          sizeFactor: _sizeController,
+          sizeFactor: _sizeController!,
           child: new Container(height: widget.visibleRange),
         )
       ],
@@ -239,12 +242,12 @@ class LoadWrapper extends Wrapper {
   final bool autoLoad;
 
   LoadWrapper(
-      {Key key,
-      @required bool up,
-      @required ValueNotifier<int> modeListener,
-      double triggerDistance,
-      this.autoLoad,
-      IndicatorBuilder builder})
+      {Key? key,
+      required bool up,
+      required ValueNotifier<int> modeListener,
+      double? triggerDistance,
+      this.autoLoad = false,
+      IndicatorBuilder? builder})
       : assert(up != null, modeListener != null),
         super(
           key: key,
@@ -262,12 +265,12 @@ class LoadWrapper extends Wrapper {
 }
 
 class LoadWrapperState extends State<LoadWrapper> implements GestureProcessor {
-  Function _updateListener;
+  Function()? _updateListener;
 
   @override
   Widget build(BuildContext context) {
     // TODO: implement build
-    return widget.builder(context, widget.mode);
+    return widget.builder!(context, widget.mode);
   }
 
   @override
@@ -277,13 +280,13 @@ class LoadWrapperState extends State<LoadWrapper> implements GestureProcessor {
     _updateListener = () {
       setState(() {});
     };
-    widget.modeListener.addListener(_updateListener);
+    widget.modeListener.addListener(_updateListener!);
   }
 
   @override
   void dispose() {
     // TODO: implement dispose
-    widget.modeListener.removeListener(_updateListener);
+    widget.modeListener.removeListener(_updateListener!);
     super.dispose();
   }
 
@@ -301,10 +304,10 @@ class LoadWrapperState extends State<LoadWrapper> implements GestureProcessor {
     if (widget._isRefreshing || widget._isComplete) return;
     if (widget.autoLoad) {
       if (widget.up &&
-          notification.metrics.extentBefore <= widget.triggerDistance)
+          notification.metrics.extentBefore <= (widget.triggerDistance??0))
         widget.mode = RefreshStatus.refreshing;
       if (!widget.up &&
-          notification.metrics.extentAfter <= widget.triggerDistance)
+          notification.metrics.extentAfter <= (widget.triggerDistance??0))
         widget.mode = RefreshStatus.refreshing;
     }
   }
@@ -315,10 +318,10 @@ class LoadWrapperState extends State<LoadWrapper> implements GestureProcessor {
     if (widget._isRefreshing || widget._isComplete) return;
     if (widget.autoLoad) {
       if (widget.up &&
-          notification.metrics.extentBefore <= widget.triggerDistance)
+          notification.metrics.extentBefore <= (widget.triggerDistance??0))
         widget.mode = RefreshStatus.refreshing;
       if (!widget.up &&
-          notification.metrics.extentAfter <= widget.triggerDistance)
+          notification.metrics.extentAfter <= (widget.triggerDistance??0))
         widget.mode = RefreshStatus.refreshing;
     }
   }
